@@ -400,17 +400,12 @@ class CLexer(private val source: String) {
 }
 
 // CompilerMain.kt - 主程序
+//任务 -read lexertest.c file -命令行print -生成中间文件和符号表文件
+fun main() {
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")
 
-
-fun main(args: Array<String>) {
-    if (args.isEmpty()) {
-        println("Usage: kotlin CompilerMain <source-file>")
-        return
-    }
-
-    val sourceFile = File(args[0])
     if (!sourceFile.exists()) {
-        println("Error: File ${args[0]} not found")
+        println("Error: File lexertest.c not found in current directory 请确保该目录包含lexer测试文件")
         return
     }
 
@@ -420,7 +415,7 @@ fun main(args: Array<String>) {
         val tokens = lexer.tokenize()
 
         // 输出到控制台 (三列格式)
-        println("=== Lexical Analysis Results ===")
+        println("=== Lexical Analysis Results ==>")
         println("CATEGORY\t\tTOKEN_TYPE\t\tLEXEME")
         println("=" .repeat(60))
 
@@ -449,7 +444,7 @@ fun main(args: Array<String>) {
         println("Error: ${e.message}")
     }
 }
-
+//生成中间文件--token file for parser
 fun generateTokenFile(tokens: List<Token>): String {
     val sb = StringBuilder()
     sb.appendLine("# Token File for Parser")
@@ -463,7 +458,7 @@ fun generateTokenFile(tokens: List<Token>): String {
     }
     return sb.toString()
 }
-
+//生成符号表文件
 fun generateSymbolFile(tokens: List<Token>): String {
     val sb = StringBuilder()
     sb.appendLine("# Symbol Table")
@@ -489,7 +484,7 @@ fun generateSymbolFile(tokens: List<Token>): String {
 
     return sb.toString()
 }
-
+//print token统计信息
 fun printStatistics(tokens: List<Token>) {
     println("\n=== Statistics ===")
     val stats = tokens.groupBy { it.type.category }
