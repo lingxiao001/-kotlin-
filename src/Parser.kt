@@ -1151,10 +1151,10 @@ class SymbolCollector : ASTVisitor {
 
 // 扩展主程序，集成词法分析和语法分析
 fun main() {
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lackof}.c")
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lackofindentifier.c")
 
     if (!sourceFile.exists()) {
-        println("Error: File lexertest.c not found")
+        println("Error: File lexertest file not found")
         return
     }
 
@@ -1199,7 +1199,7 @@ fun main() {
         println("\n3. Generating output files...")
 
         // AST文件
-        val astFile = File("lexertest_ast.txt")
+        val astFile = File("ast.txt")
         astFile.writeText(generateASTFile(ast))
         println("✓ AST file: ${astFile.name}")
 

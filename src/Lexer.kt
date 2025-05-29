@@ -21,7 +21,7 @@ enum class TokenType(val category: String) {
     SHORT("KEYWORD"), SIGNED("KEYWORD"), SIZEOF("KEYWORD"), STATIC("KEYWORD"),
     STRUCT("KEYWORD"), SWITCH("KEYWORD"), TYPEDEF("KEYWORD"), UNION("KEYWORD"),
     UNSIGNED("KEYWORD"), VOID("KEYWORD"), VOLATILE("KEYWORD"), WHILE("KEYWORD"),
-    INCLUDE("KEYWORD"),
+    INCLUDE("KEYWORD"), TRUE("KEYWORD"), FALSE("KEYWORD"), NULL("KEYWORD"),
 
     // 标识符和字面量
     IDENTIFIER("IDENTIFIER"),
@@ -99,7 +99,7 @@ enum class TokenType(val category: String) {
             "short" to SHORT, "signed" to SIGNED, "sizeof" to SIZEOF, "static" to STATIC,
             "struct" to STRUCT, "switch" to SWITCH, "typedef" to TYPEDEF, "union" to UNION,
             "unsigned" to UNSIGNED, "void" to VOID, "volatile" to VOLATILE, "while" to WHILE,
-            "include" to INCLUDE
+            "include" to INCLUDE, "true" to TRUE, "false" to FALSE, "null" to NULL
         )
 
         fun getKeyword(identifier: String): TokenType? = keywords[identifier] // identifier标识符映射为TokenType 并return TokenType
@@ -402,10 +402,10 @@ class CLexer(private val source: String) {
 // CompilerMain.kt - 主程序
 //任务 -read lexertest.c file -命令行print -生成中间文件和符号表文件
 fun main() {
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\simpletest.c")
 
     if (!sourceFile.exists()) {
-        println("Error: File lexertest.c not found in current directory 请确保该目录包含lexer测试文件")
+        println("Error: File simpletest.c not found in current directory 请确保该目录包含lexer测试文件")
         return
     }
 
