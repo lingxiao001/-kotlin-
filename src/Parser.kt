@@ -1151,7 +1151,7 @@ class SymbolCollector : ASTVisitor {
 
 // 扩展主程序，集成词法分析和语法分析
 fun main() {
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lackof{.c")
 
     if (!sourceFile.exists()) {
         println("Error: File lexertest.c not found")
