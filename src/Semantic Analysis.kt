@@ -40,10 +40,48 @@ class SemanticAnalyzer : ASTVisitor {
     private var currentFunction: FunctionSymbol? = null
     private val errors = mutableListOf<SemanticError>()
 
+    // 添加标准库函数
+    fun defineStandardLibrary() {
+        // printf 函数
+        currentScope.define(FunctionSymbol(
+            name = "printf",
+            type = "int",
+            parameters = listOf(Parameter("string", "format"))
+        ))
+        
+        // scanf 函数
+        currentScope.define(FunctionSymbol(
+            name = "scanf",
+            type = "int",
+            parameters = listOf(Parameter("string", "format"))
+        ))
+        
+        // malloc 函数
+        currentScope.define(FunctionSymbol(
+            name = "malloc",
+            type = "void*",
+            parameters = listOf(Parameter("int", "size"))
+        ))
+        
+        // free 函数
+        currentScope.define(FunctionSymbol(
+            name = "free",
+            type = "void",
+            parameters = listOf(Parameter("void*", "ptr"))
+        ))
+    }
+
     // 基本类型检查
     private fun isCompatibleType(expected: String, actual: String): Boolean {
         if (expected == actual) return true
-        // 可以在这里添加更多的类型兼容规则
+        // 数值类型之间的兼容性
+        if ((expected == "int" || expected == "float") && (actual == "int" || actual == "float")) {
+            return true
+        }
+        // 条件语句中的类型兼容性
+        if (expected == "bool" && (actual == "int" || actual == "float")) {
+            return true
+        }
         return false
     }
 
@@ -206,7 +244,7 @@ class SemanticAnalyzer : ASTVisitor {
 
         return when (node.operator.type) {
             TokenType.PLUS, TokenType.MINUS, TokenType.MULTIPLY, TokenType.DIVIDE -> {
-                if (leftType != "int" && leftType != "float" || rightType != "int" && rightType != "float") {
+                if (!isCompatibleType("int", leftType) || !isCompatibleType("int", rightType)) {
                     throw SemanticError("Arithmetic operators require numeric operands", node)
                 }
                 if (leftType == "float" || rightType == "float") "float" else "int"
@@ -218,13 +256,13 @@ class SemanticAnalyzer : ASTVisitor {
                 "bool"
             }
             TokenType.LESS_THAN, TokenType.LESS_EQUAL, TokenType.GREATER_THAN, TokenType.GREATER_EQUAL -> {
-                if (leftType != "int" && leftType != "float" || rightType != "int" && rightType != "float") {
+                if (!isCompatibleType("int", leftType) || !isCompatibleType("int", rightType)) {
                     throw SemanticError("Comparison operators require numeric operands", node)
                 }
                 "bool"
             }
             TokenType.LOGICAL_AND, TokenType.LOGICAL_OR -> {
-                if (leftType != "bool" || rightType != "bool") {
+                if (!isCompatibleType("bool", leftType) || !isCompatibleType("bool", rightType)) {
                     throw SemanticError("Logical operators require boolean operands", node)
                 }
                 "bool"
@@ -304,7 +342,8 @@ class SemanticAnalyzer : ASTVisitor {
             TokenType.STRING_LITERAL -> "string"
             TokenType.TRUE, TokenType.FALSE -> "bool"
             TokenType.NULL -> "null"
-            else -> throw SemanticError("Unsupported literal type", node)
+            TokenType.IDENTIFIER -> "string"  // 处理标识符类型的字面量
+            else -> throw SemanticError("Unsupported literal type: ${node.type}", node)
         }
     }
 

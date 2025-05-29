@@ -46,18 +46,18 @@ data class FunctionDeclaration(
 // 参数
 data class Parameter(val type: String, val name: String)
 
+// 语句基类
+abstract class Statement : Declaration() {
+    override fun accept(visitor: ASTVisitor): String = visitor.visitStatement(this)
+}
+
 // 变量声明
 data class VariableDeclaration(
     val type: String,
     val name: String,
     val initializer: Expression?
-) : Declaration() {
+) : Statement() {
     override fun accept(visitor: ASTVisitor): String = visitor.visitVariable(this)
-}
-
-// 语句基类
-abstract class Statement : ASTNode() {
-    override fun accept(visitor: ASTVisitor): String = visitor.visitStatement(this)
 }
 
 // 块语句
@@ -186,7 +186,9 @@ class CParser(private val tokens: List<Token>) {
                 if (check(TokenType.LEFT_PAREN)) {
                     functionDeclaration(type, name)
                 } else {
-                    variableDeclaration(type, name)
+                    val initializer = if (match(TokenType.ASSIGN)) expression() else null
+                    consume(TokenType.SEMICOLON, "Expected ';'")
+                    VariableDeclaration(type, name, initializer)
                 }
             }
             else -> throw ParseException("Expected declaration", peek())
@@ -257,7 +259,7 @@ class CParser(private val tokens: List<Token>) {
                 val name = consume(TokenType.IDENTIFIER, "Expected identifier").lexeme
                 val initializer = if (match(TokenType.ASSIGN)) expression() else null
                 consume(TokenType.SEMICOLON, "Expected ';'")
-                statements.add(ExpressionStatement(LiteralExpression("var_decl: $type $name", TokenType.IDENTIFIER)))
+                statements.add(VariableDeclaration(type, name, initializer))
             } else {
                 statements.add(statement())
             }
@@ -1217,7 +1219,7 @@ fun main() {
         println("\n=== Compilation Statistics ===")
         println("Source lines: ${sourceCode.lines().size}")
         println("Tokens: ${tokens.size}")
-        println("AST nodes: ${countASTNodes(ast)}")
+//        println("AST nodes: ${countASTNodes(ast)}")
         println("Intermediate instructions: ${intermediateCode.size}")
 
         val symbolCollector = SymbolCollector()
@@ -1250,24 +1252,24 @@ fun generateTokenFileForParser(tokens: List<Token>): String {
 }
 
 // 计算AST节点数量
-fun countASTNodes(node: ASTNode): Int {
-    return when (node) {
-        is Program -> 1 + node.declarations.sumOf { countASTNodes(it) }
-        is FunctionDeclaration -> 1 + (node.body?.let { countASTNodes(it) } ?: 0)
-        is VariableDeclaration -> 1 + (node.initializer?.let { countASTNodes(it) } ?: 0)
-        is BlockStatement -> 1 + node.statements.sumOf { countASTNodes(it) }
-        is IfStatement -> 1 + countASTNodes(node.condition) + countASTNodes(node.thenStatement) +
-                (node.elseStatement?.let { countASTNodes(it) } ?: 0)
-        is WhileStatement -> 1 + countASTNodes(node.condition) + countASTNodes(node.body)
-        is ForStatement -> 1 + (node.init?.let { countASTNodes(it) } ?: 0) +
-                (node.condition?.let { countASTNodes(it) } ?: 0) +
-                (node.update?.let { countASTNodes(it) } ?: 0) + countASTNodes(node.body)
-        is ReturnStatement -> 1 + (node.expression?.let { countASTNodes(it) } ?: 0)
-        is ExpressionStatement -> 1 + countASTNodes(node.expression)
-        is BinaryExpression -> 1 + countASTNodes(node.left) + countASTNodes(node.right)
-        is UnaryExpression -> 1 + countASTNodes(node.operand)
-        is AssignmentExpression -> 1 + countASTNodes(node.target) + countASTNodes(node.value)
-        is CallExpression -> 1 + countASTNodes(node.callee) + node.arguments.sumOf { countASTNodes(it) }
-        else -> 1
-    }
-}
+//fun countASTNodes(node: ASTNode): Int {
+//    return when (node) {
+//        is Program -> 1 + node.declarations.sumOf { countASTNodes(it) }
+//        is FunctionDeclaration -> 1 + (node.body?.let { countASTNodes(it) } ?: 0)
+//        is VariableDeclaration -> 1 + (node.initializer?.let { countASTNodes(it) } ?: 0)
+//        is BlockStatement -> 1 + node.statements.sumOf { countASTNodes(it) }
+//        is IfStatement -> 1 + countASTNodes(node.condition) + countASTNodes(node.thenStatement) +
+//                (node.elseStatement?.let { countASTNodes(it) } ?: 0)
+//        is WhileStatement -> 1 + countASTNodes(node.condition) + countASTNodes(node.body)
+//        is ForStatement -> 1 + (node.init?.let { countASTNodes(it) } ?: 0) +
+//                (node.condition?.let { countASTNodes(it) } ?: 0) +
+//                (node.update?.let { countASTNodes(it) } ?: 0) + countASTNodes(node.body)
+//        is ReturnStatement -> 1 + (node.expression?.let { countASTNodes(it) } ?: 0)
+//        is ExpressionStatement -> 1 + countASTNodes(node.expression)
+//        is BinaryExpression -> 1 + countASTNodes(node.left) + countASTNodes(node.right)
+//        is UnaryExpression -> 1 + countASTNodes(node.operand)
+//        is AssignmentExpression -> 1 + countASTNodes(node.target) + countASTNodes(node.value)
+//        is CallExpression -> 1 + countASTNodes(node.callee) + node.arguments.sumOf { countASTNodes(it) }
+//        else -> 1
+//    }
+//}
