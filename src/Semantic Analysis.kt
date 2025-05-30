@@ -29,6 +29,10 @@ class Scope(val parent: Scope? = null) {
     fun resolve(name: String): Symbol? {
         return symbols[name] ?: parent?.resolve(name)
     }
+
+    fun resolveCurrentScopeOnly(name: String): Symbol? {
+        return symbols[name]
+    }
 }
 
 // 语义错误
@@ -39,6 +43,7 @@ class SemanticAnalyzer : ASTVisitor {
     private var currentScope: Scope = Scope()
     private var currentFunction: FunctionSymbol? = null
     private val errors = mutableListOf<SemanticError>()
+    private var hasMainFunction = false  // 添加对main函数的检查
 
     // 添加标准库函数
     fun defineStandardLibrary() {
@@ -87,14 +92,21 @@ class SemanticAnalyzer : ASTVisitor {
 
     // 分析入口
     fun analyze(program: Program) {
+        defineStandardLibrary()
+        
         try {
             program.accept(this)
+            
+            // 检查是否定义了main函数
+            if (!hasMainFunction) {
+                throw SemanticError("Program must have a main function", program)
+            }
         } catch (e: SemanticError) {
             errors.add(e)
         }
         
         if (errors.isNotEmpty()) {
-            errors.forEach { println(it.message) }
+            errors.forEach { println("Semantic Error: ${it.message}") }
             throw Exception("Semantic analysis failed with ${errors.size} errors")
         }
     }
@@ -105,9 +117,22 @@ class SemanticAnalyzer : ASTVisitor {
     }
 
     override fun visitFunction(node: FunctionDeclaration): String {
-        // 检查函数重复定义
-        if (currentScope.resolve(node.name) != null) {
-            throw SemanticError("Function ${node.name} is already defined", node)
+        // 检查函数重复定义 - 只在当前作用域检查
+        if (currentScope.resolveCurrentScopeOnly(node.name) != null) {
+            throw SemanticError("Function ${node.name} is already defined in current scope", node)
+        }
+
+        // 检查是否是main函数
+        if (node.name == "main") {
+            hasMainFunction = true
+            // 检查main函数的返回类型
+            if (node.returnType != "int") {
+                throw SemanticError("Main function must return int", node)
+            }
+            // 检查main函数的参数
+            if (node.parameters.isNotEmpty()) {
+                throw SemanticError("Main function should have no parameters", node)
+            }
         }
 
         // 创建函数符号
@@ -125,6 +150,9 @@ class SemanticAnalyzer : ASTVisitor {
 
         // 添加参数到作用域
         node.parameters.forEach { param ->
+            if (currentScope.resolveCurrentScopeOnly(param.name) != null) {
+                throw SemanticError("Parameter ${param.name} is already defined", node)
+            }
             currentScope.define(VariableSymbol(param.name, param.type, true))
         }
 
@@ -138,9 +166,10 @@ class SemanticAnalyzer : ASTVisitor {
     }
 
     override fun visitVariable(node: VariableDeclaration): String {
-        // 检查变量重复定义
-        if (currentScope.resolve(node.name) != null) {
-            throw SemanticError("Variable ${node.name} is already defined", node)
+        // 检查变量重复定义 - 严格检查当前作用域
+        val existingSymbol = currentScope.resolveCurrentScopeOnly(node.name)
+        if (existingSymbol != null) {
+            throw SemanticError("Variable '${node.name}' is already defined in the current scope", node)
         }
 
         // 检查初始化表达式的类型
@@ -154,8 +183,9 @@ class SemanticAnalyzer : ASTVisitor {
             }
         }
 
-        // 添加到符号表
-        currentScope.define(VariableSymbol(node.name, node.type, node.initializer != null))
+        // 添加到符号表，标记初始化状态
+        val variableSymbol = VariableSymbol(node.name, node.type, node.initializer != null)
+        currentScope.define(variableSymbol)
         return ""
     }
 
@@ -326,10 +356,10 @@ class SemanticAnalyzer : ASTVisitor {
 
     override fun visitIdentifier(node: Identifier): String {
         val symbol = currentScope.resolve(node.name)
-            ?: throw SemanticError("Undefined variable ${node.name}", node)
+            ?: throw SemanticError("Undefined variable '${node.name}'", node)
         
         if (symbol is VariableSymbol && !symbol.initialized) {
-            throw SemanticError("Variable ${node.name} might not have been initialized", node)
+            throw SemanticError("Variable '${node.name}' might be used before initialization", node)
         }
         
         return symbol.type
@@ -352,21 +382,23 @@ class SemanticAnalyzer : ASTVisitor {
             throw SemanticError("Invalid assignment target", node)
         }
 
-        val symbol = currentScope.resolve((node.target as Identifier).name)
-            ?: throw SemanticError("Undefined variable ${(node.target as Identifier).name}", node)
+        val targetName = (node.target as Identifier).name
+        val symbol = currentScope.resolve(targetName)
+            ?: throw SemanticError("Undefined variable '$targetName'", node)
 
         if (symbol !is VariableSymbol) {
-            throw SemanticError("Cannot assign to ${(node.target as Identifier).name}", node)
+            throw SemanticError("Cannot assign to '$targetName'", node)
         }
 
         val valueType = node.value.accept(this)
         if (!isCompatibleType(symbol.type, valueType)) {
             throw SemanticError(
-                "Cannot assign $valueType to variable of type ${symbol.type}",
+                "Type mismatch: cannot assign $valueType to variable of type ${symbol.type}",
                 node
             )
         }
 
+        // 标记变量已初始化
         symbol.initialized = true
         return valueType
     }

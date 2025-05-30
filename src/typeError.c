@@ -1,9 +1,9 @@
 int main(){
     int x;
     int a;
-    int a;//重复定义
     x = 10;
-    if (a < 2){
+    a="我是个字符串";//类型冲突
+    if (x < 2){
         a=666;
         }
     return 0;

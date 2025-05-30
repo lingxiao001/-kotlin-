@@ -1,7 +1,6 @@
 int main(){
     int x;
-    int a;
-    int a;//重复定义
+//未声明就使用变量a
     x = 10;
     if (a < 2){
         a=666;
