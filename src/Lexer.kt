@@ -130,6 +130,7 @@ class CLexer(private val source: String) {
     private var line = 1
     private var column = 1
     private val tokens = mutableListOf<Token>()
+    private val similarityThreshold = 0.75  // 相似度阈值
 
     //主函数 -- 驱动语法分析过程
     fun tokenize(): List<Token> {
@@ -341,11 +342,57 @@ class CLexer(private val source: String) {
         }
     }
 
+    private fun checkSimilarKeyword(identifier: String) {
+        // 只检查长度大于2的标识符
+        if (identifier.length <= 2) return
+
+        // 预定义所有关键字列表
+        val keywords = listOf(
+            "auto", "break", "case", "char", "const", "continue", "default", "do",
+            "double", "else", "enum", "extern", "float", "for", "goto", "if",
+            "int", "long", "register", "return", "short", "signed", "sizeof", "static",
+            "struct", "switch", "typedef", "union", "unsigned", "void", "volatile", "while",
+            "include", "true", "false", "null"
+        )
+
+        for (keyword in keywords) {
+            if (keyword.length > 2 && calculateSimilarity(identifier, keyword) > similarityThreshold) {
+                println("Warning: '$identifier' at ${currentPosition()} might be a misspelling of keyword '$keyword'")
+            }
+        }
+    }
+
+    private fun calculateSimilarity(s1: String, s2: String): Double {
+        val dp = Array(s1.length + 1) { IntArray(s2.length + 1) }
+        
+        for (i in 0..s1.length) dp[i][0] = i
+        for (j in 0..s2.length) dp[0][j] = j
+        
+        for (i in 1..s1.length) {
+            for (j in 1..s2.length) {
+                dp[i][j] = if (s1[i-1].toLowerCase() == s2[j-1].toLowerCase()) {
+                    dp[i-1][j-1]
+                } else {
+                    minOf(dp[i-1][j-1], dp[i-1][j], dp[i][j-1]) + 1
+                }
+            }
+        }
+        
+        val maxLength = maxOf(s1.length, s2.length)
+        return 1 - dp[s1.length][s2.length].toDouble() / maxLength
+    }
+
     private fun identifier(start: Int) {
         while (peek().isLetterOrDigit() || peek() == '_') advance()
 
         val text = source.substring(start, current)
         val type = TokenType.getKeyword(text) ?: TokenType.IDENTIFIER
+        
+        // 如果是标识符，检查是否可能是拼写错误的关键字
+        if (type == TokenType.IDENTIFIER) {
+            checkSimilarKeyword(text)
+        }
+        
         addToken(type, start)
     }
 
@@ -402,7 +449,7 @@ class CLexer(private val source: String) {
 // CompilerMain.kt - 主程序
 //任务 -read lexertest.c file -命令行print -生成中间文件和符号表文件
 fun main() {
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\simpletest.c")
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")
 
     if (!sourceFile.exists()) {
         println("Error: File simpletest.c not found in current directory 请确保该目录包含lexer测试文件")
