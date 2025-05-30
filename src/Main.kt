@@ -4,7 +4,7 @@ fun main() {
     println("=== C Compiler - Lexical, Syntax, and Semantic Analysis ===")
     
     // 读取源文件
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")  // 你可以修改这个文件名来匹配你的输入文件
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\doubledefi.c")  // 你可以修改这个文件名来匹配你的输入文件
     if (!sourceFile.exists()) {
         println("Error: Source file not found")
         return
