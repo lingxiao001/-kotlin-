@@ -39,8 +39,15 @@ fun main() {
             return
         }
 
-        // 4. 生成输出文件
-        println("\n4. Generating output files...")
+        // 4. 生成中间代码
+        println("\n4. Generating Intermediate Code...")
+        val icVisitor = IntermediateCodeVisitor()
+        ast.accept(icVisitor)
+        val intermediateCode = icVisitor.getCode()
+        println("✓ Intermediate code generated: ${intermediateCode.size} instructions")
+
+        // 5. 生成输出文件
+        println("\n5. Generating output files...")
 
         // 生成token文件
         val tokenFile = File("output_tokens.txt")
@@ -52,6 +59,11 @@ fun main() {
         astFile.writeText(generateASTFile(ast))
         println("✓ AST file generated: ${astFile.name}")
 
+        // 生成中间代码文件
+        val icFile = File("output_intermediate.txt")
+        icFile.writeText(generateIntermediateFile(intermediateCode))
+        println("✓ Intermediate code file generated: ${icFile.name}")
+
         // 生成符号表文件
         val symbolTableFile = File("output_symboltable.txt")
         symbolTableFile.writeText(generateSymbolTableFile(ast))
@@ -62,10 +74,17 @@ fun main() {
         println("Source lines: ${sourceCode.lines().size}")
         println("Tokens: ${tokens.size}")
         println("AST nodes: ${countASTNodes(ast)}")
+        println("Intermediate instructions: ${intermediateCode.size}")
         
         val symbolCollector = SymbolCollector()
         ast.accept(symbolCollector)
         println("Symbols: ${symbolCollector.getSymbols().size}")
+
+        // 打印中间代码
+        println("\n=== Intermediate Code ===")
+        intermediateCode.forEachIndexed { index, instruction ->
+            println("${String.format("%3d", index + 1)}: $instruction")
+        }
 
     } catch (e: LexerException) {
         println("Lexical Error: ${e.message}")
