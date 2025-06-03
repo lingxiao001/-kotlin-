@@ -4,7 +4,11 @@ int main(){
     int a;//重复定义
     x = 10;
     if (a < 2){
-        a=666;
+        a="ihqshjsh";
         }
+
+
+
+
     return 0;
 }

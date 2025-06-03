@@ -4,7 +4,7 @@ fun main() {
     println("=== C Compiler - Lexical, Syntax, and Semantic Analysis ===")
     
     // 读取源文件
-    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\lexertest.c")  // 你可以修改这个文件名来匹配你的输入文件
+    val sourceFile = File("C:\\Users\\18319\\IdeaProjects\\kotlinCompiler\\src\\witho.c")  // 你可以修改这个文件名来匹配你的输入文件
     if (!sourceFile.exists()) {
         println("Error: Source file not found")
         return
@@ -41,8 +41,8 @@ fun main() {
 
         // 4. 生成中间代码
         println("\n4. Generating Intermediate Code...")
-        val icVisitor = IntermediateCodeVisitor()
-        ast.accept(icVisitor)
+        val icVisitor = IntermediateCodeVisitor() //这个访问者会遍历AST并生成中间表示
+        ast.accept(icVisitor) //触发遍历
         val intermediateCode = icVisitor.getCode()
         println("✓ Intermediate code generated: ${intermediateCode.size} instructions")
 

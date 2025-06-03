@@ -1,6 +1,7 @@
 // 符号表项
 import TokenType
 
+//符号表的抽象接口
 sealed class Symbol {
     abstract val name: String
     abstract val type: String
@@ -45,7 +46,7 @@ class SemanticAnalyzer : ASTVisitor {
     private val errors = mutableListOf<SemanticError>()
     private var hasMainFunction = false  // 添加对main函数的检查
 
-    // 添加标准库函数
+    // 添加预定义的标准库函数--直接调用无需声明
     fun defineStandardLibrary() {
         // printf 函数
         currentScope.define(FunctionSymbol(
