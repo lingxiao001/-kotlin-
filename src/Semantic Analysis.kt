@@ -212,8 +212,8 @@ class SemanticAnalyzer : ASTVisitor {
     override fun visitIf(node: IfStatement): String {
         // 检查条件表达式是否为布尔类型
         val conditionType = node.condition.accept(this)
-        if (conditionType != "bool") {
-            throw SemanticError("Condition must be boolean", node.condition)
+        if (conditionType != "bool" && conditionType != "error") {
+            addError("Condition must be boolean", node.condition)
         }
 
         node.thenStatement.accept(this)
@@ -365,10 +365,13 @@ class SemanticAnalyzer : ASTVisitor {
 
     override fun visitIdentifier(node: Identifier): String {
         val symbol = currentScope.resolve(node.name)
-            ?: throw SemanticError("Undefined variable '${node.name}'", node)
+        if (symbol == null) {
+            addError("Undefined variable '${node.name}'", node)
+            return "error" // 返回一个错误类型，但继续分析
+        }
         
         if (symbol is VariableSymbol && !symbol.initialized) {
-            throw SemanticError("Variable '${node.name}' might be used before initialization", node)
+            addError("Variable '${node.name}' might be used before initialization", node)
         }
         
         return symbol.type
@@ -382,26 +385,35 @@ class SemanticAnalyzer : ASTVisitor {
             TokenType.TRUE, TokenType.FALSE -> "bool"
             TokenType.NULL -> "null"
             TokenType.IDENTIFIER -> "string"  // 处理标识符类型的字面量
-            else -> throw SemanticError("Unsupported literal type: ${node.type}", node)
+            else -> {
+                addError("Unsupported literal type: ${node.type}", node)
+                "error"
+            }
         }
     }
 
     override fun visitAssignment(node: AssignmentExpression): String {
         if (node.target !is Identifier) {
-            throw SemanticError("Invalid assignment target", node)
+            addError("Invalid assignment target", node)
+            return "error"
         }
 
         val targetName = (node.target as Identifier).name
         val symbol = currentScope.resolve(targetName)
-            ?: throw SemanticError("Undefined variable '$targetName'", node)
+        
+        if (symbol == null) {
+            addError("Undefined variable '$targetName'", node)
+            return "error"
+        }
 
         if (symbol !is VariableSymbol) {
-            throw SemanticError("Cannot assign to '$targetName'", node)
+            addError("Cannot assign to '$targetName'", node)
+            return "error"
         }
 
         val valueType = node.value.accept(this)
-        if (!isCompatibleType(symbol.type, valueType)) {
-            throw SemanticError(
+        if (!isCompatibleType(symbol.type, valueType) && valueType != "error") {
+            addError(
                 "Type mismatch: cannot assign $valueType to variable of type ${symbol.type}",
                 node
             )

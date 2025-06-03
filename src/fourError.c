@@ -5,7 +5,7 @@ int main(){
     int a;
     int a;//重复定义
     x = 10;
-    if (7 < 2){
+    if ("我不是一个合法bool表达式 "){
         x="ihqshjsh"; //类型冲突
         }
 
