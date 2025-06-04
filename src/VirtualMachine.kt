@@ -61,6 +61,9 @@ class VirtualMachine {
 
     // 执行单条指令
     private fun executeInstruction(instruction: Instruction) {
+        println("执行指令: ${instruction.opCode} ${instruction.operand ?: ""}")
+        println("当前栈状态: $stack")
+        
         when (instruction.opCode) {
             OpCode.PUSH -> stack.add(instruction.operand!!)
             OpCode.POP -> stack.removeAt(stack.size - 1)
@@ -175,6 +178,9 @@ class VirtualMachine {
                 pc = instructions.size  // Stop execution
             }
         }
+        
+        println("执行后栈状态: $stack")
+        println("当前内存状态: $memory\n")
     }
 
     // 获取栈顶值

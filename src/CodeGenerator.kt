@@ -220,7 +220,7 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
 
         // 如果是内置函数，使用特殊指令
         when (functionName) {
-            "print" -> vm.addInstruction(Instruction(OpCode.PRINT))
+            "print", "printf" -> vm.addInstruction(Instruction(OpCode.PRINT))
             else -> {
                 // 获取函数标签并调用
                 val functionLabel = functionLabels[functionName]

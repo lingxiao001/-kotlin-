@@ -46,20 +46,50 @@ class SemanticAnalyzer : ASTVisitor {
     private val errors = mutableListOf<SemanticError>()
     private var hasMainFunction = false  // 添加对main函数的检查
 
+    init {
+        // 添加内置函数
+        defineBuiltinFunctions()
+    }
+
+    private fun defineBuiltinFunctions() {
+        // 添加 print 函数
+        currentScope.define(FunctionSymbol(
+            name = "print",
+            type = "void",
+            parameters = listOf(Parameter("any", "value"))
+        ))
+
+        // 添加 printf 函数 - 支持可变参数
+        currentScope.define(FunctionSymbol(
+            name = "printf",
+            type = "void",
+            parameters = listOf(
+                Parameter("string", "format"),
+                Parameter("any", "value")
+            )
+        ))
+    }
+
     // 添加预定义的标准库函数--直接调用无需声明
     fun defineStandardLibrary() {
         // printf 函数
         currentScope.define(FunctionSymbol(
             name = "printf",
             type = "int",
-            parameters = listOf(Parameter("string", "format"))
+            parameters = listOf(
+                Parameter("string", "format"),
+                Parameter("any", "value")
+            )
         ))
         
         // scanf 函数
         currentScope.define(FunctionSymbol(
             name = "scanf",
             type = "int",
-            parameters = listOf(Parameter("string", "format"))
+            parameters = listOf(
+                Parameter("string", "format"),
+                Parameter("any", "value")
+            )
         ))
         
         // malloc 函数
@@ -79,15 +109,21 @@ class SemanticAnalyzer : ASTVisitor {
 
     // 基本类型检查
     private fun isCompatibleType(expected: String, actual: String): Boolean {
+        // 如果期望类型是any，任何类型都兼容
+        if (expected == "any") return true
+        
         if (expected == actual) return true
+        
         // 数值类型之间的兼容性
         if ((expected == "int" || expected == "float") && (actual == "int" || actual == "float")) {
             return true
         }
+        
         // 条件语句中的类型兼容性
         if (expected == "bool" && (actual == "int" || actual == "float")) {
             return true
         }
+        
         return false
     }
 
