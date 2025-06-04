@@ -20,19 +20,24 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         functionLabels[node.name] = functionLabel
         
         // 添加函数标签
-        vm.addInstruction(Instruction(OpCode.PUSH, functionLabel))
-        vm.addInstruction(Instruction(OpCode.JMP, functionLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, functionLabel))
         
         // 处理函数体
         node.body?.accept(this)
         
-        // 如果是void函数，确保有返回指令
-        if (node.returnType == "void") {
+        // 如果是void函数或者没有明确的return语句，确保有返回指令
+        if (node.returnType == "void" || !hasExplicitReturn(node.body)) {
             vm.addInstruction(Instruction(OpCode.PUSH, null))
             vm.addInstruction(Instruction(OpCode.RETURN))
         }
         
         return ""
+    }
+
+    // 检查是否有明确的return语句
+    private fun hasExplicitReturn(node: BlockStatement?): Boolean {
+        if (node == null) return false
+        return node.statements.any { it is ReturnStatement }
     }
 
     // 访问变量声明
@@ -79,12 +84,12 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         vm.addInstruction(Instruction(OpCode.JMP, endLabel))
 
         // 生成else分支代码
-        vm.addInstruction(Instruction(OpCode.PUSH, elseLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, elseLabel))
         if (node.elseStatement != null) {
             node.elseStatement.accept(this)
         }
 
-        vm.addInstruction(Instruction(OpCode.PUSH, endLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, endLabel))
         return ""
     }
 
@@ -94,7 +99,7 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         val endLabel = newLabel()
 
         // 生成循环开始标签
-        vm.addInstruction(Instruction(OpCode.PUSH, startLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, startLabel))
 
         // 生成条件判断代码
         node.condition.accept(this)
@@ -105,7 +110,7 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         vm.addInstruction(Instruction(OpCode.JMP, startLabel))
 
         // 生成循环结束标签
-        vm.addInstruction(Instruction(OpCode.PUSH, endLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, endLabel))
         return ""
     }
 
@@ -118,7 +123,7 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         node.init?.accept(this)
 
         // 生成循环开始标签
-        vm.addInstruction(Instruction(OpCode.PUSH, startLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, startLabel))
 
         // 生成条件判断代码
         if (node.condition != null) {
@@ -134,7 +139,7 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
         vm.addInstruction(Instruction(OpCode.JMP, startLabel))
 
         // 生成循环结束标签
-        vm.addInstruction(Instruction(OpCode.PUSH, endLabel))
+        vm.addInstruction(Instruction(OpCode.LABEL, endLabel))
         return ""
     }
 
@@ -207,21 +212,41 @@ class CodeGenerator(private val vm: VirtualMachine) : ASTVisitor {
 
     // 访问函数调用
     override fun visitCall(node: CallExpression): String {
-        // 计算并压入参数
-        for (arg in node.arguments) {
-            arg.accept(this)
-        }
-
         // 获取函数名
         val functionName = when (val callee = node.callee) {
             is Identifier -> callee.name
             else -> throw IllegalArgumentException("Invalid function call target")
         }
 
-        // 如果是内置函数，使用特殊指令
         when (functionName) {
-            "print", "printf" -> vm.addInstruction(Instruction(OpCode.PRINT))
+            "print" -> {
+                if (node.arguments.size != 1) {
+                    throw IllegalArgumentException("Print function requires exactly one argument")
+                }
+                node.arguments[0].accept(this)
+                vm.addInstruction(Instruction(OpCode.PRINT))
+            }
+            "printf" -> {
+                if (node.arguments.isEmpty()) {
+                    throw IllegalArgumentException("Printf function requires at least a format string")
+                }
+                // 先压入格式化字符串
+                node.arguments[0].accept(this)
+                
+                // 压入其他参数
+                for (i in 1 until node.arguments.size) {
+                    node.arguments[i].accept(this)
+                }
+                
+                // 添加PRINTF指令，并传入参数个数（不包括格式化字符串）
+                vm.addInstruction(Instruction(OpCode.PRINTF, node.arguments.size - 1))
+            }
             else -> {
+                // 计算并压入参数
+                for (arg in node.arguments) {
+                    arg.accept(this)
+                }
+                
                 // 获取函数标签并调用
                 val functionLabel = functionLabels[functionName]
                     ?: throw IllegalArgumentException("Undefined function: $functionName")
