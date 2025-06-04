@@ -50,45 +50,69 @@ class VirtualMachine {
 
     // 调试模式标志
     private var isDebugMode = false
+    // 详细输出模式
+    private var isVerboseMode = true
 
     // 设置调试模式
     fun setDebugMode(debug: Boolean) {
         isDebugMode = debug
     }
 
+    // 设置详细输出模式
+    fun setVerboseMode(verbose: Boolean) {
+        isVerboseMode = verbose
+    }
+
     // 添加指令
     fun addInstruction(instruction: Instruction) {
-        // 如果是标签指令，记录标签位置
         if (instruction.opCode == OpCode.LABEL) {
             labelMap[instruction.operand as Int] = instructions.size
+        }
+        if (isVerboseMode) {
+            println("添加指令: ${instruction.opCode} ${instruction.operand ?: ""}")
         }
         instructions.add(instruction)
     }
 
     // 执行所有指令
     fun execute() {
+        if (isVerboseMode) {
+            println("\n=== 开始执行程序 ===")
+            println("初始内存状态: $memory")
+            println("指令数量: ${instructions.size}")
+        }
+        
         pc = 0
         while (pc < instructions.size) {
-            if (isDebugMode) {
-                println("DEBUG: Executing instruction at $pc: ${instructions[pc].opCode}")
-                println("DEBUG: Stack size: ${stack.size}")
-                println("DEBUG: Call stack size: ${callStack.size}")
+            val instruction = instructions[pc]
+            
+            if (isVerboseMode) {
+                println("\n执行指令[$pc]: ${instruction.opCode} ${instruction.operand ?: ""}")
+                println("当前栈: $stack")
+                if (memory.isNotEmpty()) {
+                    println("当前内存: $memory")
+                }
             }
             
-            val instruction = instructions[pc]
             executeInstruction(instruction)
             
-            // 检查栈大小，防止栈溢出
+            // 检查栈大小
             if (stack.size > 1000) {
-                throw RuntimeException("Stack overflow: stack size exceeds 1000")
+                throw RuntimeException("栈溢出: 栈大小超过1000")
             }
             
-            // 检查调用栈大小，防止无限递归
+            // 检查调用栈大小
             if (callStack.size > 100) {
-                throw RuntimeException("Call stack overflow: possible infinite recursion")
+                throw RuntimeException("调用栈溢出: 可能存在无限递归")
             }
             
             pc++
+        }
+        
+        if (isVerboseMode) {
+            println("\n=== 程序执行完成 ===")
+            println("最终栈状态: $stack")
+            println("最终内存状态: $memory")
         }
     }
 
@@ -96,41 +120,56 @@ class VirtualMachine {
     private fun executeInstruction(instruction: Instruction) {
         try {
             when (instruction.opCode) {
-                OpCode.PUSH -> stack.add(instruction.operand!!)
-                OpCode.POP -> if (stack.isNotEmpty()) stack.removeAt(stack.size - 1)
-                OpCode.ADD -> executeBinaryOp { a, b -> a + b }
-                OpCode.SUB -> executeBinaryOp { a, b -> a - b }
-                OpCode.MUL -> executeBinaryOp { a, b -> a * b }
-                OpCode.DIV -> executeBinaryOp { a, b -> 
-                    if (b == 0.0) throw ArithmeticException("Division by zero")
+                OpCode.PUSH -> {
+                    stack.add(instruction.operand!!)
+                    if (isVerboseMode) println("压入值: ${instruction.operand}")
+                }
+                OpCode.POP -> {
+                    if (stack.isNotEmpty()) {
+                        val value = stack.removeAt(stack.size - 1)
+                        if (isVerboseMode) println("弹出值: $value")
+                    }
+                }
+                OpCode.ADD -> executeBinaryOp("加法") { a, b -> a + b }
+                OpCode.SUB -> executeBinaryOp("减法") { a, b -> a - b }
+                OpCode.MUL -> executeBinaryOp("乘法") { a, b -> a * b }
+                OpCode.DIV -> executeBinaryOp("除法") { a, b -> 
+                    if (b == 0.0) throw ArithmeticException("除数不能为零")
                     a / b 
                 }
-                OpCode.NEG -> executeUnaryOp { -it }
+                OpCode.NEG -> executeUnaryOp("取负") { -it }
                 OpCode.NOT -> {
-                    val a = stack.removeAt(stack.size - 1)
-                    stack.add(!(a as Boolean))
+                    if (stack.isNotEmpty()) {
+                        val a = stack.removeAt(stack.size - 1)
+                        val result = !(a as Boolean)
+                        stack.add(result)
+                        if (isVerboseMode) println("逻辑非: $a -> $result")
+                    }
                 }
-                OpCode.EQUAL -> executeBinaryOp { a, b -> a == b }
-                OpCode.NOT_EQUAL -> executeBinaryOp { a, b -> a != b }
-                OpCode.LESS_THAN -> executeBinaryOp { a, b -> a < b }
-                OpCode.GREATER_THAN -> executeBinaryOp { a, b -> a > b }
-                OpCode.LESS_EQUAL -> executeBinaryOp { a, b -> a <= b }
-                OpCode.GREATER_EQUAL -> executeBinaryOp { a, b -> a >= b }
+                OpCode.EQUAL -> executeBinaryOp("相等比较") { a, b -> a == b }
+                OpCode.NOT_EQUAL -> executeBinaryOp("不等比较") { a, b -> a != b }
+                OpCode.LESS_THAN -> executeBinaryOp("小于比较") { a, b -> a < b }
+                OpCode.GREATER_THAN -> executeBinaryOp("大于比较") { a, b -> a > b }
+                OpCode.LESS_EQUAL -> executeBinaryOp("小于等于比较") { a, b -> a <= b }
+                OpCode.GREATER_EQUAL -> executeBinaryOp("大于等于比较") { a, b -> a >= b }
                 OpCode.STORE -> {
                     if (stack.isNotEmpty()) {
                         val value = stack.last()
                         val name = instruction.operand as String
                         memory[name] = value
+                        if (isVerboseMode) println("存储变量: $name = $value")
                     }
                 }
                 OpCode.LOAD -> {
                     val name = instruction.operand as String
-                    val value = memory[name] ?: throw RuntimeException("Variable $name not found")
+                    val value = memory[name] ?: throw RuntimeException("未找到变量: $name")
                     stack.add(value)
+                    if (isVerboseMode) println("加载变量: $name = $value")
                 }
                 OpCode.PRINT -> {
                     if (stack.isNotEmpty()) {
                         val value = stack.removeAt(stack.size - 1)
+                        if (isVerboseMode) println("打印值: $value")
                         when (value) {
                             is Double -> {
                                 if (value == value.toInt().toDouble()) {
@@ -152,6 +191,7 @@ class VirtualMachine {
                             args.add(0, stack.removeAt(stack.size - 1))
                         }
                         val format = stack.removeAt(stack.size - 1) as String
+                        if (isVerboseMode) println("格式化打印: format=\"$format\", args=$args")
                         try {
                             val processedArgs = args.map { arg ->
                                 when (arg) {
@@ -161,31 +201,39 @@ class VirtualMachine {
                             }
                             print(String.format(format, *processedArgs.toTypedArray()))
                         } catch (e: Exception) {
-                            throw RuntimeException("Printf format error: ${e.message}")
+                            throw RuntimeException("Printf格式化错误: ${e.message}")
                         }
                     }
                 }
-                OpCode.LABEL -> { /* 标签指令不需要执行任何操作 */ }
+                OpCode.LABEL -> {
+                    if (isVerboseMode) println("标签定义: ${instruction.operand}")
+                }
                 OpCode.JMP -> {
                     val targetLabel = instruction.operand as Int
-                    val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("Invalid jump target: $targetLabel")
-                    pc = targetIndex - 1  // -1 because pc will be incremented after instruction
+                    val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("无效的跳转目标: $targetLabel")
+                    if (isVerboseMode) println("无条件跳转到标签 $targetLabel (指令索引: $targetIndex)")
+                    pc = targetIndex - 1
                 }
                 OpCode.JZ -> {
                     if (stack.isNotEmpty()) {
                         val condition = stack.removeAt(stack.size - 1)
+                        if (isVerboseMode) println("条件判断: $condition")
                         if (condition == false || condition == 0 || condition == 0.0) {
                             val targetLabel = instruction.operand as Int
-                            val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("Invalid jump target: $targetLabel")
+                            val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("无效的跳转目标: $targetLabel")
+                            if (isVerboseMode) println("条件为假，跳转到标签 $targetLabel (指令索引: $targetIndex)")
                             pc = targetIndex - 1
+                        } else {
+                            if (isVerboseMode) println("条件为真，继续执行")
                         }
                     }
                 }
                 OpCode.CALL -> {
                     val targetLabel = instruction.operand as Int
-                    val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("Invalid function label: $targetLabel")
+                    val targetIndex = labelMap[targetLabel] ?: throw RuntimeException("无效的函数标签: $targetLabel")
                     callStack.add(Frame(pc + 1, basePointer))
                     basePointer = stack.size
+                    if (isVerboseMode) println("调用函数: 标签 $targetLabel (指令索引: $targetIndex), 保存返回地址: ${pc + 1}")
                     pc = targetIndex - 1
                 }
                 OpCode.RETURN -> {
@@ -193,7 +241,7 @@ class VirtualMachine {
                     if (callStack.isNotEmpty()) {
                         val frame = callStack.removeAt(callStack.size - 1)
                         pc = frame.returnAddress
-                        // 清理栈并保留返回值
+                        if (isVerboseMode) println("函数返回: 返回值=$returnValue, 返回地址=${frame.returnAddress}")
                         while (stack.size > basePointer) {
                             stack.removeAt(stack.size - 1)
                         }
@@ -202,30 +250,38 @@ class VirtualMachine {
                             stack.add(returnValue)
                         }
                     } else {
-                        pc = instructions.size  // 如果没有调用帧，结束执行
+                        if (isVerboseMode) println("程序返回: 返回值=$returnValue")
+                        pc = instructions.size
                     }
                 }
-                OpCode.HALT -> pc = instructions.size
+                OpCode.HALT -> {
+                    if (isVerboseMode) println("程序终止")
+                    pc = instructions.size
+                }
             }
         } catch (e: Exception) {
-            throw RuntimeException("Error executing ${instruction.opCode}: ${e.message}")
+            throw RuntimeException("执行指令 ${instruction.opCode} 时出错: ${e.message}")
         }
     }
 
     // 执行二元操作
-    private inline fun executeBinaryOp(operation: (Double, Double) -> Any) {
+    private inline fun executeBinaryOp(opName: String, operation: (Double, Double) -> Any) {
         if (stack.size >= 2) {
             val b = (stack.removeAt(stack.size - 1) as Number).toDouble()
             val a = (stack.removeAt(stack.size - 1) as Number).toDouble()
-            stack.add(operation(a, b))
+            val result = operation(a, b)
+            stack.add(result)
+            if (isVerboseMode) println("$opName: $a ${opName} $b = $result")
         }
     }
 
     // 执行一元操作
-    private inline fun executeUnaryOp(operation: (Double) -> Double) {
+    private inline fun executeUnaryOp(opName: String, operation: (Double) -> Double) {
         if (stack.isNotEmpty()) {
             val a = (stack.removeAt(stack.size - 1) as Number).toDouble()
-            stack.add(operation(a))
+            val result = operation(a)
+            stack.add(result)
+            if (isVerboseMode) println("$opName: $a -> $result")
         }
     }
 
